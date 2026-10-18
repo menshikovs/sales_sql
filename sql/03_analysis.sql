@@ -54,7 +54,7 @@ GROUP BY
 HAVING
 	COUNT( o.order_id ) > 1
 ORDER BY 
-	total_orders DESC
+	total_orders DESC;
 
 -- Analysis 5: Monthly Revenue
 
@@ -70,4 +70,80 @@ WHERE
 GROUP BY
 	month 
 ORDER BY
-	month ASC
+	month ASC;
+
+-- Analysis 6: Average Order Value
+
+SELECT
+	ROUND (AVG (order_total_eur), 2) AS average_order_total_eur
+FROM (
+	SELECT
+		oi.order_id,
+        SUM(oi.unit_price * oi.quantity) / 100.0 AS order_total_eur
+    FROM 
+    	order_items AS oi
+	JOIN orders AS o
+		ON o.order_id = oi.order_id 
+	WHERE
+		o.status = 'completed'
+	GROUP BY
+		o.order_id 
+) AS order_totals;
+
+--Analysis 7: Top Customers by Revenue
+
+SELECT
+    c.name AS customer_name,
+    SUM(oi.unit_price * oi.quantity) / 100.0 AS total_spent_eur
+FROM 
+    customers AS c
+JOIN orders AS o
+    ON o.customer_id = c.customer_id
+JOIN order_items AS oi
+    ON oi.order_id = o.order_id
+WHERE 
+    o.status = 'completed'
+GROUP BY 
+    c.customer_id
+ORDER BY 
+    total_spent_eur DESC
+LIMIT 3;
+
+-- Analysis 8: Best-Selling Products
+
+SELECT
+	p.product_name,
+	SUM (oi.quantity) AS total_units_sold
+FROM
+	products AS p
+JOIN order_items AS oi 
+	ON p.product_id = oi.product_id
+JOIN orders as o
+	ON o.order_id  = oi.order_id 
+WHERE o.status = 'completed'
+GROUP BY
+	p.product_id 
+ORDER BY 
+	total_units_sold DESC, p.product_name ASC;
+
+-- Analysis 9: Cancellation Rate
+
+SELECT
+	ROUND(SUM(CASE
+		WHEN o.status = 'canceled' THEN 1
+		ELSE 0
+	END) * 100.0 / COUNT(o.order_id), 2 )AS cancellation_rate_pct
+FROM
+	orders AS o;
+
+-- Analysis 10: Average Number of Items per Completed Order
+
+SELECT
+    ROUND(
+        SUM(oi.quantity) * 1.0 / COUNT(DISTINCT o.order_id),
+        2
+    ) AS avg_items_per_completed_order
+FROM orders AS o
+LEFT JOIN order_items AS oi
+    ON o.order_id = oi.order_id
+WHERE o.status = 'completed';
